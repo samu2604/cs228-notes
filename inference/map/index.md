@@ -1,4 +1,5 @@
 ---
+
 layout: post
 title: MAP inference
 ---
@@ -162,7 +163,7 @@ In general, this method will only give approximate solutions. An important speci
 
 Let us now look at another way to transform the MAP objective into a more amenable optimization problem. Suppose that we are dealing with an MRF of the form
 
-$$ \max_x \sum_{i \in V} \theta_i (x_i) + \sum_{f \in F} \theta_f (x_f), $$
+$$ MAP \left( \theta \right) = \max_x \left( \sum_{i \in V} \theta_i (x_i) + \sum_{f \in F} \theta_f (x_f) \right) , $$
 
 where $$F$$ denote arbitrary factors (e.g. the edge potentials in a pairwise MRF){% include sidenote.html id="note-sontag" note="These short notes are roughly based on the tutorial by [Sontag et al.](http://cs.nyu.edu/~dsontag/papers/SonGloJaa_optbook.pdf), to which we refer the reader for a full discussion." %}. Let us use $$p^*$$ to denote the optimal value of this objective and let $$x^*$$ denote the optimal assignment.
 
@@ -198,13 +199,14 @@ It is actually not hard to prove this in our particular setting. To see that, no
 
 $$
 \begin{align*}
-L(\delta)
-& = \sum_{i \in V} \max_{x_i} \left( \theta_i (x_i) + \sum_{f:i \in f} \delta_{fi}(x_i) \right) + \sum_{f \in F} \max_{x^f} \left( \theta_f (x^f) + \sum_{i \in f} \delta_{fi}(x_i) \right) \\
-& := \sum_{i \in V} \max_{x_i} \bar \theta_{i}^\delta (x_i) + \sum_{f \in F} \max_{x^f} \bar \theta_{f}^\delta (x^f).
+MAP \left( \theta \right) = \max_{x} \left( \sum_{i \in V} \left( \theta_i (x_i) + \sum_{f:i \in f} \delta_{fi}(x_i) \right) + \sum_{f \in F} \left( \theta_f (x^f) - \sum_{i \in f} \delta_{fi}(x_i) \right) \right) \\
+: \leq L(\delta)
+ = \sum_{i \in V} \max_{x_i} \left( \theta_i (x_i) + \sum_{f:i \in f} \delta_{fi}(x_i) \right) + \sum_{f \in F} \max_{x^f} \left( \theta_f (x^f) - \sum_{i \in f} \delta_{fi}(x_i) \right) \\
+:= \sum_{i \in V} \max_{x_i} \bar \theta_{i}^\delta (x_i) + \sum_{f \in F} \max_{x^f} \bar \theta_{f}^\delta (x^f).
 \end{align*}
 $$
 
-Suppose we can find dual variables $$\bar \delta$$ such that the local maximizers of $$\bar \theta_{i}^{\bar \delta} (x_i)$$ and $$\bar \theta_{f}^{\bar \delta} (x^f)$$ agree; in other words, we can find a $$\bar x$$ such that $$\bar x_i \in \arg\max_{x_i} \bar \theta_{i}^{\bar \delta} (x_i)$$ and $$\bar x^f \in \arg\max_{x^f} \bar \theta_{f}^{\bar \delta} (x^f)$$. Then we have that
+Suppose we can find dual variables $$\bar \delta$$ such that the local maximizers of $$\bar \theta{i}^{\bar \delta} (x_i)$$, the objective function for the *i-slave*, and $$\bar \theta{f}^{\bar \delta} (x^f)$$, objective function for the *f-slave*, agree; in other words, we can find a $$\bar x$$ such that $$\bar x_i \in \arg\max_{x_i} \bar \theta_{i}^{\bar \delta} (x_i)$$ and $$\bar x^f \in \arg\max_{x^f} \bar \theta_{f}^{\bar \delta} (x^f)$$. Then we have that
 
 $$
 L(\bar \delta)
@@ -227,6 +229,24 @@ This argument has shown two things:
 - The bound given by the Lagrangian can be made tight for the right choice of $$\delta$$.
 - To compute $$p^*$$, it suffices to find a $$\delta$$ at which the local sub-problems agree with each other. This happens surprisingly often in practice.
 
+### Dual decomposition algorithm
+
+Below is a short description of the dual decomposition algorithm from the PGM course slides.
+
+{% include maincolumn_img.html src='assets/img/dual_decomposition_algorithm.png' caption='Algorithm representation.' %}
+
+
+
+We can see that, in case of disagreement between $$ x_{i}^{*}$$ and $$x_{f_i}^{*}$$, the penalty for $$\delta_{fi}(x_{i}^{*})$$ led to a wrong max and therefore needs to be reduced, to disincentivise the *i-slave* to take this value the next iteration and for the same reason toward the *f-slave* we have that $$\delta_{fi}(x_{f_i}^{*})$$ needs to be increased instead.
+
+Dual decomposition converges if $$ \sum_t \alpha_t \rightarrow + \infty $$ and $$ \sum_t \alpha_t^2 < \infty $$, moreover the convergence is to a *unique global optimum* regardless of the initialization.
+
+At convergence each of the slaves has an optimal solution that is not changing anymore and if all  *f-slaves* and *i_slaved* agree than the **shared solution is a guaranteed MAP assignment.**
+
+It is also possible that the solutions do not agree on all shared variables, in this case we have the *decoding problem* to construct a joint assignment starting from the shared variables that agree with each other. 
+
+Something more about the decoding problem is addressed below. 
+
 
 ### Minimizing the objective
 
@@ -243,6 +263,10 @@ An alternative way of minimizing $$L(\delta)$$ is via block coordinate descent. 
 As we have seen above, if a solution $$\bfx, \bfx^f$$ agrees on the factors for some $$\delta$$, then we can guarantee that this solution is optimal.
 
 If the optimal $$\bfx, \bfx^f$$ do not agree, finding the MAP assignment from this solution is still NP-hard. However, this is usually not a big problem in practice. From the point of view of theoretical guarantees, if each $$\bar \theta_i^{\delta^*}$$ has a unique maximum, then the problem will be decodable. If this guarantee is not met by all variables, we can clamp the ones that can be uniquely decoded to their optimal values and use exact inference to find the remaining variables' values.
+
+Below are some options for decoding, it turns out that because it is easy to evaluate $$ \theta \ \forall x $$, the best solution is to generate many candidates $$ x $$ and pick the one with highest score. 
+
+{% include maincolumn_img.html src='assets/img/decoding_options.png' caption='Options for decoding the MAP assignment.' %}
 
 ## Other methods
 

@@ -181,7 +181,15 @@ A sufficient condition for a stationary distribution is called *detailed balance
 
 $$ \pi(x') T(x \mid x') = \pi(x) T(x' \mid x) \quad\text{for all $x$} $$
 
-It is easy to show that such a $$\pi$$ must form a stationary distribution (just sum both sides of the equation over $$x$$ and simplify). However, the reverse may not hold and indeed it is possible to have [MCMC without satisfying detailed balance](https://arxiv.org/pdf/1007.2262.pdf).
+It is easy to show that such a $$\pi$$ must form a stationary distribution.
+
+Proof: just sum both sides of the equation over $$x$$ and simplify.
+
+$$ \sum_{x} \pi(x') T(x \mid x') = \sum_{x} \pi(x) T(x' \mid x)  = \pi(x') \sum_{x} T(x \mid x') = \pi(x') $$
+
+from the above result we have $$ \pi(x') = \sum_{x} \pi(x) T(x' \mid x)  \rightarrow \pi = T \cdot \pi  $$, this means that $$ \pi $$ is *stationary*.
+
+ However, the reverse may not hold and indeed it is possible to have [MCMC without satisfying detailed balance](https://arxiv.org/pdf/1007.2262.pdf) even if *stationarity* is satisfied.
 
 ### Existence of a stationary distribution
 

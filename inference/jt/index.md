@@ -25,11 +25,15 @@ At the end of VE, $$x_i$$ receives messages from all of its immediate children, 
 
 Now suppose that after computing $$p(x_i)$$, we want to compute $$p(x_k)$$ as well. We would again run VE with $$x_k$$ as the root, waiting until $$x_k$$ receives all messages from its children. The key insight: the messages $$x_k$$ received from $$x_j$$ now will be the same as those received when $$x_i$$ was the root{% include sidenote.html id="note-ve" note="Another reason why this is true is because there is only a single path connecting two nodes in the tree." %}. Thus, if we store the intermediary messages of the VE algorithm, we can quickly recompute other marginals as well.
 
+Here is a representation of the message passing algorithm in the special case of a tree structure 
+
+{% include maincolumn_img.html src='assets/img/message_passing_trees.png' %}
+
 ### A message-passing algorithm
 
 A key question here is, *how exactly do we compute all the messages we need?* Notice for example, that the messages to $$x_k$$ from the side of $$x_i$$ will need to be recomputed.
 
-The answer is very simple: a node $$x_i$$ sends a message to a neighbor $$x_j$$ whenever it has received messages from all nodes besides $$x_j$$. It's a fun exercise to the reader to show that in a tree, there will always be a node with a message to send, unless all the messages have been sent out. This will happen after precisely $$2 \vert E \vert$$ steps, since each edge can receive messages only twice: once from $$x_i \to x_j$$, and once more in the opposite direction.
+The answer is very simple: a node $$x_i$$ sends a message to a neighbor $$x_j$$ whenever it has received messages from all nodes besides $$x_j$$. It's a fun exercise to the reader to show that in a tree, there will always be a node with a message to send, unless all the messages have been sent out. This will happen after precisely $$2 \vert E \vert$$ steps, where $$ \vert E \vert $$ is the number of edges and since each edge can receive messages only twice: once from $$x_i \to x_j$$, and once more in the opposite direction.
 
 Finally, this algorithm will be correct because our messages are defined as the intermediate factors in the VE algorithm.
 
@@ -114,7 +118,7 @@ Suppose that we are performing marginal inference on an MRF of the form
 
 $$ p(x_1, \dotsc, x_n) = \frac{1}{Z} \prod_{c \in C} \phi_c(x_c), $$
 
-Crucially, we assume that the cliques $$c$$ have some path structure, meaning that we can find an ordering $$x_c^{(1)}, \dotsc, x_c^{(n)}$$ with the property that if $$x_i \in x_c^{(j)}$$ and $$x_i \in x_c^{(k)}$$ for some variable $$x_i$$ then $$x_i \in x_c^{(\ell)}$$ for all $$x_c^{(\ell)}$$ on the path between $$x_c^{(j)}$$ and $$x_c^{(k)}$$. We refer to this assumption as the *running intersection* property (RIP).
+Crucially, we assume that the cliques $$c$$, that are maximal fully connected subgraphs, have some path structure, meaning that we can find an ordering $$x_c^{(1)}, \dotsc, x_c^{(n)}$$, where $$x_c^{(i)}$$ is the scope of clique $$c^{(i)}$$, with the property that if $$x_i \in x_c^{(j)}$$ and $$x_i \in x_c^{(k)}$$ for some variable $$x_i$$ then we have that $$x_i \in x_c^{(\ell)}$$ for all the cliques $$x_c^{(\ell)}$$ on the path between $$x_c^{(j)}$$ and $$x_c^{(k)}$$. We refer to this assumption as the *running intersection* property (RIP).
 {% include maincolumn_img.html src='assets/img/junctionpath.png' caption='A chain MRF whose cliques are organized into a chain structure. Round nodes represent cliques and the variables in their scope; rectangular nodes indicate sepsets, which are variables forming the intersection of the scopes of two neighboring cliques.' %}
 
 Suppose that we are interested in computing the marginal probability $$p(x_1)$$ in the above example. Given our assumptions, we may again use a form of variable elimination to "push in" certain variables deeper into the product of cluster potentials:
@@ -133,6 +137,15 @@ The running intersection property is what enables us to push sums in all the way
 The core idea of the junction tree algorithm is to turn a graph into a tree of clusters that are amenable to the variable elimination algorithm like the above MRF. Then we simply perform message-passing on this tree.
 
 Suppose we have an undirected graphical model $$G$$ (if the model is directed, we consider its moralized graph).
+
+{% include maincolumn_img.html src='assets/img/moralization_pgm.png' caption='Here is an example of moralization on a BN into the induced Markov Network.' %}
+
+The moralization is done thinking of respecting and representing in the induced MN the v-structure conditional dependencies present in the starting Bayesian Network.  
+
+After that it is possible that the chosen ordering for Variable Elimination will underline new edges in the Markov Network. For example if we chose for the above example to eliminate $$C, D, I,\dotsc $$  at the point we eliminate $$I$$ we will notice that in the resulting factor all the variables connected to $$I$$ that are $$G,S$$ needs to become connected directly.
+
+{% include maincolumn_img.html src='assets/img/induced_by_elimination_ordering.png' caption='Here is the proof that the Induced Graph depends on factors and on the chosen elimination ordering.' %}
+
 A junction tree $$T=(C, E_T)$$ over $$G = (\Xc, E_G)$$ is a tree whose nodes $$c \in C$$ are associated with subsets $$x_c \subseteq \Xc$$ of the graph vertices (i.e. sets of variables); the junction tree must satisfy the following properties:
 
 - *Family preservation*: For each factor $$\phi$$, there is a cluster $$c$$ such that $$\text{Scope}[\phi] \subseteq x_c$$.
@@ -161,22 +174,22 @@ $$ p(x_1, \dotsc, x_n) = \frac{1}{Z} \prod_{c \in C} \psi_c(x_c). $$
 Then, at each step of the algorithm, we choose a pair of adjacent clusters $$c^{(i)}, c^{(j)}$$ in $$T$$ and compute a message whose scope is the sepset $$S_{ij}$$ between the two clusters:
 
 $$
-m_{i\to j}(S_{ij}) = \sum_{x_c \backslash S_{ij}} \psi_c(x_c) \prod_{\ell \in N(i) \backslash j} m_{\ell \to i}(S_{\ell i}).
+m_{i\to j}(S_{ij}) = \sum_{x_c^{(i)} \backslash S_{ij}} \psi_c(x_c^{(i)}) \prod_{\ell \in N(i) \backslash j} m_{\ell \to i}(S_{\ell i}).
 $$
 
 We choose $$c^{(i)}, c^{(j)}$$ only if $$c^{(i)}$$ has received messages from all of its neighbors except $$c^{(j)}$$. Just as in belief propagation, this procedure will terminate in exactly $$2 \lvert E_T \rvert$$ steps. After it terminates, we will define the belief of each cluster based on all the messages that it receives
 
 $$
-\beta_c(x_c) = \psi_c(x_c) \prod_{\ell \in N(i)} m_{\ell \to i}(S_{\ell i}).
+\beta_c(x_c^{(i)}) = \psi_c(x_c^{(i)}) \prod_{\ell \in N(i)} m_{\ell \to i}(S_{\ell i}).
 $$
 
-These updates are often referred to as *Shafer-Shenoy*. After all the messages have been passed, beliefs will be proportional to the marginal probabilities over their scopes, i.e. $$\beta_c(x_c) \propto p(x_c)$$. We may answer queries of the form $$\tp(x)$$ for $$x \in x_c$$ by marginalizing out the variable in its belief{% include sidenote.html id="note-dp" note="Readers familiar with combinatorial optimization will recognize this as a special case of dynamic programming on a tree decomposition of a graph with bounded treewidth." %}
+These updates are often referred to as *Shafer-Shenoy*. After all the messages have been passed, beliefs will be proportional to the marginal probabilities over their scopes, i.e. $$\beta_c(x_c^{(i)}) \propto p(x_c^{(i)})$$. We may answer queries of the form $$\tp(x)$$ for $$x \in x_c^{(i)}$$ by marginalizing out the variable in its belief{% include sidenote.html id="note-dp" note="Readers familiar with combinatorial optimization will recognize this as a special case of dynamic programming on a tree decomposition of a graph with bounded treewidth." %}
 
 $$
-\tp(x) = \sum_{x_c \backslash x} \beta_c(x_c).
+\tp(x) = \sum_{x_c^{(i)} \backslash x} \beta_c(x_c^{(i)}).
 $$
 
-To get the actual (normalized) probability, we divide by the partition function $$Z$$ which is computed by summing all the beliefs in a cluster, $$Z = \sum_{x_c} \beta_c(x_c)$$.
+To get the actual (normalized) probability, we divide by the partition function $$Z$$ which is computed by summing all the beliefs in a cluster $$c^{(i)}$$, $$Z = \sum_{x_c^{(i)}} \beta_c(x_c^{(i)})$$.
 
 Note that this algorithm makes it obvious why we want small clusters: the running time will be exponential in the size of the largest cluster (if only because we may need to marginalize out variables from the cluster, which often must be done using brute force). This is why a junction tree of a single node containing all the variables is not useful: it amounts to performing full brute-force marginalization.
 
